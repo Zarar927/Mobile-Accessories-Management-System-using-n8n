@@ -1,0 +1,452 @@
+{
+  "name": "My workflow 3",
+  "nodes": [
+    {
+      "parameters": {
+        "options": {}
+      },
+      "id": "9406c5b9-3354-43c9-b545-1f4e7d12be74",
+      "name": "When chat message received",
+      "type": "@n8n/n8n-nodes-langchain.chatTrigger",
+      "typeVersion": 1.5,
+      "position": [
+        -176,
+        -16
+      ]
+    },
+    {
+      "parameters": {
+        "options": {
+          "systemMessage": "You are an inventory assistant for a shop, working on the Airtable Inventory Items table. Value is the unit price of an item. Stock rules: A) DECREASE stock when a customer buys or a sale happens, e.g. I bought 2 office chairs, customer bought 2, sold 2. The words bought, buy, purchased or sold mean items LEFT the shop, so subtract the quantity. B) INCREASE stock ONLY when the user explicitly says they are adding new stock, e.g. adding new stock of 10 office chairs, add 10 office chairs to stock, restock 10, received new stock. If the message is unclear whether stock goes up or down, ask the user before updating. Steps: 1) Always call the search tool first to find the item and read its record id (starts with rec), Current Quantity and Value. Never guess ids or quantities. 2) Calculate the new total quantity using the rules above. Never let stock go below 0: if a sale is larger than the current stock, tell the user and do not update. 3) Call the Update record in Airtable tool with the record id and the new quantity right away. Do NOT ask for a price; stock updates never need one. 4) Only if the user explicitly mentions a price (e.g. at 5000 each), also call the Update price in Airtable tool with that unit price. Otherwise leave Value unchanged. 5) Confirm the item, old quantity, change (with - for sales or + for new stock), new quantity, and the price if it changed. If several items match, ask which one. If none match, say so."
+        }
+      },
+      "id": "2bf2e541-cec6-46d0-b863-a7fed9dd5b3c",
+      "name": "AI Agent",
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 3.1,
+      "position": [
+        32,
+        -16
+      ]
+    },
+    {
+      "parameters": {
+        "model": "deepseek/deepseek-v4-flash",
+        "options": {}
+      },
+      "id": "9cbf5d40-86b1-48e6-b416-5d263d21f207",
+      "name": "OpenRouter Chat Model",
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenRouter",
+      "typeVersion": 1,
+      "position": [
+        -112,
+        224
+      ]
+    },
+    {
+      "parameters": {},
+      "id": "0e05a925-ffb0-43e0-aa98-618a1154749f",
+      "name": "Simple Memory",
+      "type": "@n8n/n8n-nodes-langchain.memoryBufferWindow",
+      "typeVersion": 1.4,
+      "position": [
+        32,
+        224
+      ]
+    },
+    {
+      "parameters": {
+        "descriptionType": "manual",
+        "toolDescription": "Search the Inventory Items table. Returns matching records with their Airtable record id (starts with rec), Item Name, SKU, Current Quantity and Value. Use this first to find an item before updating it.",
+        "authentication": "airtableOAuth2Api",
+        "operation": "search",
+        "base": {
+          "__rl": true,
+          "value": "appHlUM2XbKLUbFDw",
+          "mode": "list",
+          "cachedResultName": "Mobile Inventory Manager",
+          "cachedResultUrl": "https://airtable.com/appHlUM2XbKLUbFDw"
+        },
+        "table": {
+          "__rl": true,
+          "value": "tblGH398ZS3JWK81e",
+          "mode": "list",
+          "cachedResultName": "Inventory Items",
+          "cachedResultUrl": "https://airtable.com/appHlUM2XbKLUbFDw/tblGH398ZS3JWK81e"
+        },
+        "filterByFormula": "={{ $fromAI(\"filterByFormula\", \"Airtable formula to find the item, e.g. SEARCH(LOWER('office chair'), LOWER({Item Name})). Leave empty to list all records.\", \"string\") }}",
+        "options": {}
+      },
+      "id": "e3a8c119-2492-4997-8659-369172d61eee",
+      "name": "Search records in Airtable",
+      "type": "n8n-nodes-base.airtableTool",
+      "typeVersion": 2.2,
+      "position": [
+        176,
+        208
+      ]
+    },
+    {
+      "parameters": {
+        "descriptionType": "manual",
+        "toolDescription": "Update ONLY the stock (Current Quantity) of one inventory item. Does not change the price. Requires the Airtable record id (starts with rec) from the search tool and the new total quantity.",
+        "authentication": "airtableOAuth2Api",
+        "operation": "update",
+        "base": {
+          "__rl": true,
+          "value": "appHlUM2XbKLUbFDw",
+          "mode": "list",
+          "cachedResultName": "Mobile Inventory Manager",
+          "cachedResultUrl": "https://airtable.com/appHlUM2XbKLUbFDw"
+        },
+        "table": {
+          "__rl": true,
+          "value": "tblGH398ZS3JWK81e",
+          "mode": "list",
+          "cachedResultName": "Inventory Items",
+          "cachedResultUrl": "https://airtable.com/appHlUM2XbKLUbFDw/tblGH398ZS3JWK81e"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "id": "={{ $fromAI(\"recordID\", \"The Airtable record id of the item, starting with rec, taken from the search tool result\", \"string\") }}",
+            "Current Quantity": "={{ $fromAI(\"newQuantity\", \"The new total stock quantity after applying the change\", \"number\") }}"
+          },
+          "matchingColumns": [
+            "id"
+          ],
+          "schema": [
+            {
+              "id": "id",
+              "displayName": "id",
+              "required": false,
+              "defaultMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": true,
+              "removed": false
+            },
+            {
+              "id": "SKU",
+              "displayName": "SKU",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": true
+            },
+            {
+              "id": "Item Name",
+              "displayName": "Item Name",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": true
+            },
+            {
+              "id": "Category",
+              "displayName": "Category",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": true
+            },
+            {
+              "id": "Barcode",
+              "displayName": "Barcode",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": true
+            },
+            {
+              "id": "Current Quantity",
+              "displayName": "Current Quantity",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "number",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "Reorder Threshold",
+              "displayName": "Reorder Threshold",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "number",
+              "readOnly": false,
+              "removed": true
+            },
+            {
+              "id": "Storage Location",
+              "displayName": "Storage Location",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "array",
+              "readOnly": false,
+              "removed": true
+            },
+            {
+              "id": "Product Photos",
+              "displayName": "Product Photos",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "array",
+              "readOnly": false,
+              "removed": true
+            },
+            {
+              "id": "Active",
+              "displayName": "Active",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "boolean",
+              "readOnly": false,
+              "removed": true
+            },
+            {
+              "id": "Description",
+              "displayName": "Description",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": true
+            },
+            {
+              "id": "Preferred Supplier",
+              "displayName": "Preferred Supplier",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": true
+            },
+            {
+              "id": "Stock Movements",
+              "displayName": "Stock Movements",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "array",
+              "readOnly": false,
+              "removed": true
+            },
+            {
+              "id": "Reorder Tasks",
+              "displayName": "Reorder Tasks",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "array",
+              "readOnly": false,
+              "removed": true
+            },
+            {
+              "id": "min quantity",
+              "displayName": "min quantity",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "number",
+              "readOnly": false,
+              "removed": true
+            },
+            {
+              "id": "Value",
+              "displayName": "Value",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "number",
+              "readOnly": false,
+              "removed": true
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "id": "feeaa478-3c88-4727-a3da-37931f017b9b",
+      "name": "Update record in Airtable",
+      "type": "n8n-nodes-base.airtableTool",
+      "typeVersion": 2.2,
+      "position": [
+        432,
+        208
+      ]
+    },
+    {
+      "parameters": {
+        "descriptionType": "manual",
+        "toolDescription": "Update ONLY the unit price (Value field) of one inventory item. Use only when the user explicitly mentions a price. Requires the Airtable record id (starts with rec) from the search tool.",
+        "authentication": "airtableOAuth2Api",
+        "operation": "update",
+        "base": {
+          "__rl": true,
+          "value": "appHlUM2XbKLUbFDw",
+          "mode": "list",
+          "cachedResultName": "Mobile Inventory Manager",
+          "cachedResultUrl": "https://airtable.com/appHlUM2XbKLUbFDw"
+        },
+        "table": {
+          "__rl": true,
+          "value": "tblGH398ZS3JWK81e",
+          "mode": "list",
+          "cachedResultName": "Inventory Items",
+          "cachedResultUrl": "https://airtable.com/appHlUM2XbKLUbFDw/tblGH398ZS3JWK81e"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "id": "={{ $fromAI(\"recordID\", \"The Airtable record id of the item, starting with rec, taken from the search tool result\", \"string\") }}",
+            "Value": "={{ $fromAI(\"unitPrice\", \"The new unit price the user mentioned\", \"number\") }}"
+          },
+          "matchingColumns": [
+            "id"
+          ],
+          "schema": [
+            {
+              "id": "id",
+              "displayName": "id",
+              "required": false,
+              "defaultMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": true,
+              "removed": false
+            },
+            {
+              "id": "Value",
+              "displayName": "Value",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "number",
+              "readOnly": false,
+              "removed": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "id": "08909c82-8a66-4a2a-aac7-889268a4e3bd",
+      "name": "Update price in Airtable",
+      "type": "n8n-nodes-base.airtableTool",
+      "typeVersion": 2.2,
+      "position": [
+        304,
+        208
+      ]
+    }
+  ],
+  "connections": {
+    "When chat message received": {
+      "main": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenRouter Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Simple Memory": {
+      "ai_memory": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_memory",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Search records in Airtable": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Update record in Airtable": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Update price in Airtable": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate"
+  },
+  "versionId": "11b54f49-7d00-40fe-aaf6-fa2dd7fd2187",
+  "nodeGroups": [],
+  "tags": []
+}
