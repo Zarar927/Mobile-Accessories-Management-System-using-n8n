@@ -39,22 +39,6 @@ The workflow follows this process:
 7. **Price Update Tool:** Changes the unit price only when explicitly requested.
 8. **Chat Response:** Confirms the action and reports the resulting inventory values.
 
-### Workflow Diagram
-
-```mermaid
-flowchart TD
-    A[Chat Message Received] --> B[AI Agent]
-    C[OpenRouter Chat Model] --> B
-    D[Simple Memory] <--> B
-    B --> E[Search Inventory in Airtable]
-    E --> B
-    B --> F[Update Stock Quantity]
-    B --> G[Update Unit Price]
-    F --> B
-    G --> B
-    B --> H[Confirmation to User]
-```
-
 ## 💬 Example Commands
 
 The following examples illustrate the intended behavior of the assistant.
